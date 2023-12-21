@@ -135,11 +135,21 @@ def project_check(task_names, node_names, rll_pairs):
 
 
 def taskfile_parse(taskfile):
+    """Function parses an .rll file"""
+    logger = logging.getLogger(__name__)
+    logger.debug(taskfile)
     # Parse the xml file
     root = ET.fromstring(taskfile.read())
     # Find all elements with tag name <pgmName>
     pgmname = root.find(".//pgmName")
-    return pgmname.text
+    if pgmname is not None:
+        return pgmname.text
+
+    logger.error(
+        "Program Abort\nCould not find '<pgmName>' in task file %s", taskfile.name
+    )
+    sys.exit(-1)
+
 
 def main():
     """Program main() function"""
