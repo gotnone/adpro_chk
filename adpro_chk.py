@@ -32,7 +32,7 @@ def find_dupes(l):
 
 
 def print_column(l):
-    [print(f"{i}\n") for i in l] 
+    [print(f"{i}\n") for i in l]
 
 
 def program_prj_parse(prjfile):
@@ -84,13 +84,13 @@ def project_check(task_names, node_names, rll_pairs):
     logger.debug("Node_set\n{}".format(node_set))
     logger.debug("Pgm_set\n{}".format(pgm_set))
     logger.debug("Super_set\n{}".format(super_set))
-    
+
     missing_task = super_set - task_set
     missing_node = super_set - node_set
     missing_pgm = super_set - pgm_set
 
     prj_common = task_set & node_set
-    
+
     task_dupes = find_dupes(task_names)
     node_dupes = find_dupes(node_names)
     pgm_dupes = find_dupes(pgm_names)
@@ -164,6 +164,6 @@ if __name__ == "__main__":
                 pgm_name = taskfile_parse(taskfile)
                 rll_pairs.append((pgm_name, t))
 
-        logger.debug([[p,f.name] for [p,f] in rll_pairs]) 
+        logger.debug([[p,f.name] for [p,f] in rll_pairs])
 
         sys.exit(project_check(task_names, node_names, rll_pairs))
