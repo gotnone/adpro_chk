@@ -141,12 +141,17 @@ def taskfile_parse(taskfile):
     pgmname = root.find(".//pgmName")
     return pgmname.text
 
-if __name__ == "__main__":
+def main():
+    """Program main() function"""
     logger = logging.getLogger(__name__)
     parser = argparse.ArgumentParser("Productivity Suite Project Verificator")
     parser.add_argument("projfile", help="The .adpro file to check")
-    parser.add_argument( "-log", "--loglevel", default="warning",
-                        help="Provide logging level. Example --loglevel debug, default=warning" )
+    parser.add_argument(
+        "-log",
+        "--loglevel",
+        default="warning",
+        help="Provide logging level. Example --loglevel debug, default=warning",
+    )
     args = parser.parse_args()
     logger.setLevel(args.loglevel.upper())
 
@@ -164,6 +169,10 @@ if __name__ == "__main__":
                 pgm_name = taskfile_parse(taskfile)
                 rll_pairs.append((pgm_name, t))
 
-        logger.debug([[p,f.name] for [p,f] in rll_pairs])
+        logger.debug([[p, f.name] for [p, f] in rll_pairs])
 
         sys.exit(project_check(task_names, node_names, rll_pairs))
+
+
+if __name__ == "__main__":
+    main()
