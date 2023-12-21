@@ -32,8 +32,10 @@ def find_dupes(list_with_dupes):
     return dupes
 
 
-def print_column(l):
-    [print(f"{i}\n") for i in l]
+def print_column(list_to_print):
+    """Function to print a list as a column to stdout"""
+    for i in list_to_print:
+        print(f"{i}\n")
 
 
 def program_prj_parse(prjfile):
