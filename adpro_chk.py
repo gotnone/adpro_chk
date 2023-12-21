@@ -81,11 +81,9 @@ def program_prj_parse(prjfile):
     return [task_names, node_names]
 
 
-def project_check(task_names, node_names, rll_pairs):
-    """Function to check for corruption in an .adpro file"""
+def missing_task_check(task_names, node_names, pgm_names):
+    """Function checks to see if there are missing tasks"""
     logger = logging.getLogger(__name__)
-    pgm_names = [p for [p, _] in rll_pairs]
-    logger.debug(pgm_names)
     task_set = set(task_names)
     node_set = set(node_names)
     pgm_set = set(pgm_names)
@@ -101,15 +99,40 @@ def project_check(task_names, node_names, rll_pairs):
 
     prj_common = task_set & node_set
 
+    # print the common tasks
+    logger.debug("Common:\n%s", prj_common)
+
+    result = 0
+    if missing_node:
+        print("Missing Task Manager Entry:")
+        print_column(missing_node)
+        result |= 8
+
+    if missing_task:
+        print("Missing Task Definition:")
+        print_column(missing_task)
+        result |= 16
+
+    if missing_pgm:
+        print("Missing Task Program:")
+        print_column(missing_pgm)
+        result |= 32
+
+    return result
+
+
+def project_check(task_names, node_names, rll_pairs):
+    """Function to check for corruption in an .adpro file"""
+    logger = logging.getLogger(__name__)
+    pgm_names = [p for [p, _] in rll_pairs]
+    logger.debug(pgm_names)
+
     task_dupes = find_dupes(task_names)
     node_dupes = find_dupes(node_names)
     pgm_dupes = find_dupes(pgm_names)
     logger.debug("task_dupes:%s", task_dupes)
     logger.debug("node_dupes:%s", node_dupes)
     logger.debug("pgm_dupes:%s", pgm_dupes)
-
-    # print the common tasks
-    logger.debug("Common:\n%s", prj_common)
 
     result = 0
     if node_dupes:
@@ -131,22 +154,7 @@ def project_check(task_names, node_names, rll_pairs):
             )
         result |= 4
 
-    if missing_node:
-        print("Missing Task Manager Entry:")
-        print_column(missing_node)
-        result |= 8
-
-    if missing_task:
-        print("Missing Task Definition:")
-        print_column(missing_task)
-        result |= 16
-
-    if missing_pgm:
-        print("Missing Task Program:")
-        print_column(missing_pgm)
-        result |= 32
-
-    return result
+    return result | missing_task_check(task_names, node_names, pgm_names)
 
 
 def taskfile_parse(taskfile):
