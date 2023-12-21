@@ -36,6 +36,7 @@ def print_column(l):
 
 
 def program_prj_parse(prjfile):
+    """Function to parse the program.prj file"""
     logger = logging.getLogger(__name__)
     # Parse the xml file
     root = ET.fromstring(prjfile.read())
@@ -50,11 +51,11 @@ def program_prj_parse(prjfile):
     for path in paths:
         if path.find("[folder='false']"):
             node = path.find("nodeName")
-            node_names.append(node.text)
+            if node is not None:
+                node_names.append(node.text)
 
         # Print the list of node names
-    logger.debug(node_names)
-    logger.debug(find_dupes(node_names))
+    logger.debug("node_names:\n%s", node_names)
 
     # Create an empty list to store the task names
     task_names = []
@@ -64,11 +65,10 @@ def program_prj_parse(prjfile):
 
     # Loop over the tasks and append their text to the list
     for task in tasks:
-            task_names.append(task.text)
+        task_names.append(task.text)
 
         # Print the list of task names
-    logger.debug(task_names)
-    logger.debug(find_dupes(task_names))
+    logger.debug("task_names:\n%s", task_names)
     return [task_names, node_names]
 
 
