@@ -20,14 +20,15 @@ import logging
 logging.basicConfig(level = logging.DEBUG,format = "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s")
 
 
-def find_dupes(l):
+def find_dupes(list_with_dupes):
+    """Function to find duplicates in a list"""
     seen = set()
     dupes = []
-    for x in l:
-        if x in seen:
-                dupes.append(x)
+    for item in list_with_dupes:
+        if item in seen:
+            dupes.append(item)
         else:
-            seen.add(x)
+            seen.add(item)
     return dupes
 
 
