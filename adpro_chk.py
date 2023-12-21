@@ -11,6 +11,9 @@
 # License: MIT
 #
 
+"""adpro_chk Checks for File Corruption in Automation Direct Productivity Suite
+Project Files"""
+
 import sys
 import argparse
 import xml.etree.ElementTree as ET
