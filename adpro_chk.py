@@ -20,7 +20,10 @@ import xml.etree.ElementTree as ET
 from zipfile import ZipFile, Path
 import logging
 
-logging.basicConfig(level = logging.DEBUG,format = "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s")
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+)
 
 
 def find_dupes(list_with_dupes):
