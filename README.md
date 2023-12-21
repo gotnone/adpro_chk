@@ -1,4 +1,4 @@
-# adpro_chk - Verify your Productivity Suite Project Files
+# adpro_chk - Verify your Automation Direct Productivity Suite Project Files
 
 If you hve been bitten by the [undo
 fiasco](https://community.automationdirect.com/s/question/0D5PE000005sIWe0AM/productivity-suite-410-69-file-corruption)

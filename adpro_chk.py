@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 #
-# adpro_chk - Checks for File Corruption Issues in Productivity Suite Project Files
+# adpro_chk - Checks for File Corruption Issues in Automation Direct
+# Productivity Suite Project Files
 #
 # Stanley Pinchak
 # stanley.pinchak@gmail.com
