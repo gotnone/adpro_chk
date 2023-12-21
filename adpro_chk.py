@@ -183,10 +183,10 @@ def main():
 
         tasks = [x for x in Path(projfile).iterdir() if r"task" in x.name]
 
-        for t in tasks:
-            with t.open() as taskfile:
+        for task in tasks:
+            with task.open() as taskfile:
                 pgm_name = taskfile_parse(taskfile)
-                rll_pairs.append((pgm_name, t))
+                rll_pairs.append((pgm_name, task))
 
         logger.debug([[p, f.name] for [p, f] in rll_pairs])
 
