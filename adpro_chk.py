@@ -73,17 +73,18 @@ def program_prj_parse(prjfile):
 
 
 def project_check(task_names, node_names, rll_pairs):
+    """Function to check for corruption in an .adpro file"""
     logger = logging.getLogger(__name__)
-    pgm_names = [p for [p, x] in rll_pairs]
+    pgm_names = [p for [p, _] in rll_pairs]
     logger.debug(pgm_names)
     task_set = set(task_names)
     node_set = set(node_names)
     pgm_set = set(pgm_names)
     super_set = task_set | node_set | pgm_set
-    logger.debug("Task_set\n{}".format(task_set))
-    logger.debug("Node_set\n{}".format(node_set))
-    logger.debug("Pgm_set\n{}".format(pgm_set))
-    logger.debug("Super_set\n{}".format(super_set))
+    logger.debug("Task_set\n%s", task_set)
+    logger.debug("Node_set\n%s", node_set)
+    logger.debug("Pgm_set\n%s", pgm_set)
+    logger.debug("Super_set\n%s", super_set)
 
     missing_task = super_set - task_set
     missing_node = super_set - node_set
@@ -94,12 +95,14 @@ def project_check(task_names, node_names, rll_pairs):
     task_dupes = find_dupes(task_names)
     node_dupes = find_dupes(node_names)
     pgm_dupes = find_dupes(pgm_names)
-    #common = [x for x in node_names if x in task_names]
+    logger.debug("task_dupes:%s", task_dupes)
+    logger.debug("node_dupes:%s", node_dupes)
+    logger.debug("pgm_dupes:%s", pgm_dupes)
 
-        #print the common tasks
-    logger.debug("Common:\n{}".format(prj_common))
+    # print the common tasks
+    logger.debug("Common:\n%s", prj_common)
 
-    result = 0;
+    result = 0
     if node_dupes:
         print("Duplicated Node Entries:")
         print_column(node_dupes)
@@ -112,9 +115,12 @@ def project_check(task_names, node_names, rll_pairs):
 
     if pgm_dupes:
         print("Duplicated Pgm Entries:")
-        for d in pgm_dupes:
-            print(f"{d} : " + ', '.join([f"'{f.name}'" for [p,f] in rll_pairs if p in d]))
-        result |=4
+        for dup in pgm_dupes:
+            print(
+                f"{dup} : "
+                + ", ".join([f"'{f.name}'" for [p, f] in rll_pairs if p in dup])
+            )
+        result |= 4
 
     if missing_node:
         print("Missing Task Manager Entry:")
