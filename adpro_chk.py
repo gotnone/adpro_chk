@@ -11,14 +11,14 @@
 # License: MIT
 #
 
-"""adpro_chk Checks for File Corruption in Automation Direct Productivity Suite
-Project Files"""
+"""adpro_chk Checks for File Corruption in Automation Direct Productivity Suite Project
+Files."""
 
-import sys
 import argparse
-import xml.etree.ElementTree as ET
-from zipfile import ZipFile, Path
 import logging
+import sys
+import xml.etree.ElementTree as ET
+from zipfile import Path, ZipFile
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -27,7 +27,7 @@ logging.basicConfig(
 
 
 def find_dupes(list_with_dupes):
-    """Function to find duplicates in a list"""
+    """Function to find duplicates in a list."""
     seen = set()
     dupes = []
     for item in list_with_dupes:
@@ -39,13 +39,13 @@ def find_dupes(list_with_dupes):
 
 
 def print_column(list_to_print):
-    """Function to print a list as a column to stdout"""
+    """Function to print a list as a column to stdout."""
     for i in list_to_print:
         print(f"{i}\n")
 
 
 def program_prj_parse(prjfile):
-    """Function to parse the program.prj file"""
+    """Function to parse the program.prj file."""
     logger = logging.getLogger(__name__)
     # Parse the xml file
     root = ET.fromstring(prjfile.read())
@@ -63,26 +63,26 @@ def program_prj_parse(prjfile):
             if node is not None:
                 node_names.append(node.text)
 
-        # Print the list of node names
+    # Print the list of node names
     logger.debug("node_names:\n%s", node_names)
 
     # Create an empty list to store the task names
     task_names = []
 
-    # Find all elements with tag name <taskName>
-    tasks = root.findall(".//tasks/taskName")
+    # Find all elements in <tasks> with tag name <taskName>
+    tasks = root.findall("./tasks/taskName")
 
     # Loop over the tasks and append their text to the list
     for task in tasks:
         task_names.append(task.text)
 
-        # Print the list of task names
+    # Print the list of task names
     logger.debug("task_names:\n%s", task_names)
     return [task_names, node_names]
 
 
 def missing_task_check(task_names, node_names, pgm_names):
-    """Function checks to see if there are missing tasks"""
+    """Function checks to see if there are missing tasks."""
     logger = logging.getLogger(__name__)
     task_set = set(task_names)
     node_set = set(node_names)
@@ -122,7 +122,7 @@ def missing_task_check(task_names, node_names, pgm_names):
 
 
 def project_check(task_names, node_names, rll_pairs):
-    """Function to check for corruption in an .adpro file"""
+    """Function to check for corruption in an .adpro file."""
     logger = logging.getLogger(__name__)
     pgm_names = [p for [p, _] in rll_pairs]
     logger.debug(pgm_names)
@@ -158,13 +158,13 @@ def project_check(task_names, node_names, rll_pairs):
 
 
 def taskfile_parse(taskfile):
-    """Function parses an .rll file"""
+    """Function parses an .rll file."""
     logger = logging.getLogger(__name__)
     logger.debug(taskfile)
     # Parse the xml file
     root = ET.fromstring(taskfile.read())
     # Find all elements with tag name <pgmName>
-    pgmname = root.find(".//pgmName")
+    pgmname = root.find("./pgmName")
     if pgmname is not None:
         return pgmname.text
 
@@ -175,7 +175,7 @@ def taskfile_parse(taskfile):
 
 
 def main():
-    """Program main() function"""
+    """Program main() function."""
     logger = logging.getLogger(__name__)
     parser = argparse.ArgumentParser("Productivity Suite Project Verificator")
     parser.add_argument("projfile", help="The .adpro file to check")
