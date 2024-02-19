@@ -18,8 +18,9 @@ import argparse
 import logging
 import sys
 import xml.etree.ElementTree as ET
-from typing import Final
-from zipfile import Path, ZipFile
+from dataclasses import dataclass
+from typing import IO, AnyStr, Final, List
+from zipfile import ZipFile, ZipInfo
 
 CORRUPT_PGMFILE: Final[int] = 1 << 26
 MISSING_PGMNAME: Final[int] = 1 << 27
@@ -28,6 +29,14 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
 )
+
+
+@dataclass
+class RllPair:
+    """Class to contain pairs of taskname, taskfile (.rll)"""
+
+    taskname: str
+    infozip: ZipInfo
 
 
 def find_dupes(list_with_dupes):
@@ -125,7 +134,7 @@ def missing_task_check(task_names, node_names, pgm_names):
 def project_check(task_names, node_names, rll_pairs):
     """Function to check for corruption in an .adpro file."""
     logger = logging.getLogger(__name__)
-    pgm_names = [p for [p, _] in rll_pairs]
+    pgm_names = [p.taskname for p in rll_pairs]
     logger.debug(pgm_names)
 
     task_dupes = find_dupes(task_names)
@@ -151,14 +160,16 @@ def project_check(task_names, node_names, rll_pairs):
         for dup in pgm_dupes:
             print(
                 f"{dup} : "
-                + ", ".join([f"'{f.name}'" for [p, f] in rll_pairs if p in dup])
+                + ", ".join(
+                    [f"'{p.infozip.filename}'" for p in rll_pairs if p.taskname in dup]
+                )
             )
         result |= 4
 
     return result | missing_task_check(task_names, node_names, pgm_names)
 
 
-def taskfile_parse(taskfile, filename):
+def taskfile_parse(taskfile: IO[AnyStr], filename: str):
     """Function parses an .rll file."""
     logger = logging.getLogger(__name__)
     logger.debug(taskfile)
@@ -201,21 +212,21 @@ def main():
     args = parser.parse_args()
     logger.setLevel(args.loglevel.upper())
 
-    with ZipFile(args.projfile) as projfile:
-        task_names = []
-        node_names = []
-        rll_pairs = []
-        with projfile.open("program.prj") as program_prj:
-            [task_names, node_names] = program_prj_parse(program_prj)
+    task_names: List[str]
+    node_names: List[str]
+    rll_pairs: List[RllPair] = []
 
-        tasks = [x for x in Path(projfile).iterdir() if r"task" in x.name]
+    with ZipFile(args.projfile, mode="r") as projfile:
+        with projfile.open("program.prj") as program_prj:
+            task_names, node_names = program_prj_parse(program_prj)
+
+        tasks = [x for x in projfile.infolist() if r"task" in x.filename]
 
         for task in tasks:
-            with task.open() as taskfile:
-                pgm_name = taskfile_parse(taskfile, task.filename)
-                rll_pairs.append((pgm_name, task))
+            with projfile.open(task) as taskfile:
+                rll_pairs.append(RllPair(taskfile_parse(taskfile, task.filename), task))
 
-        logger.debug([[p, f.name] for [p, f] in rll_pairs])
+        logger.debug([(p.taskname, p.infozip.filename) for p in rll_pairs])
 
         sys.exit(project_check(task_names, node_names, rll_pairs))
 
