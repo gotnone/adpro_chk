@@ -18,7 +18,11 @@ import argparse
 import logging
 import sys
 import xml.etree.ElementTree as ET
+from typing import Final
 from zipfile import Path, ZipFile
+
+CORRUPT_PGMFILE: Final[int] = 1 << 26
+MISSING_PGMNAME: Final[int] = 1 << 27
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -154,21 +158,33 @@ def project_check(task_names, node_names, rll_pairs):
     return result | missing_task_check(task_names, node_names, pgm_names)
 
 
-def taskfile_parse(taskfile):
+def taskfile_parse(taskfile, filename):
     """Function parses an .rll file."""
     logger = logging.getLogger(__name__)
     logger.debug(taskfile)
     # Parse the xml file
-    root = ET.fromstring(taskfile.read())
+    root: ET.Element
+    try:
+        root = ET.fromstring(taskfile.read())
+    except ET.ParseError:
+        logger.error(
+            "Program Abort\nUnable to parse task program file for %s", filename
+        )
+        sys.exit(CORRUPT_PGMFILE)
     # Find all elements with tag name <pgmName>
     pgmname = root.find("./pgmName")
     if pgmname is not None:
-        return pgmname.text
-
+        if pgmname.text is not None:
+            return pgmname.text
+        logger.error(
+            "Program Abort\nUnable to find '<pgmName>' with valid text in task file %s",
+            taskfile.name,
+        )
+        sys.exit(MISSING_PGMNAME)
     logger.error(
-        "Program Abort\nCould not find '<pgmName>' in task file %s", taskfile.name
+        "Program Abort\nUnable to find '<pgmName>' in task file %s", taskfile.name
     )
-    sys.exit(-1)
+    sys.exit(MISSING_PGMNAME)
 
 
 def main():
@@ -196,7 +212,7 @@ def main():
 
         for task in tasks:
             with task.open() as taskfile:
-                pgm_name = taskfile_parse(taskfile)
+                pgm_name = taskfile_parse(taskfile, task.filename)
                 rll_pairs.append((pgm_name, task))
 
         logger.debug([[p, f.name] for [p, f] in rll_pairs])
