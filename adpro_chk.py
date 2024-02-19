@@ -22,6 +22,12 @@ from dataclasses import dataclass
 from typing import IO, AnyStr, Final, List
 from zipfile import ZipFile, ZipInfo
 
+DUP_NODE: Final[int] = 1
+DUP_TASK: Final[int] = 1 << 1
+DUP_PGM: Final[int] = 1 << 2
+MISSING_NODE: Final[int] = 1 << 3
+MISSING_TASK: Final[int] = 1 << 4
+MISSING_PGM: Final[int] = 1 << 5
 CORRUPT_PGMFILE: Final[int] = 1 << 26
 MISSING_PGMNAME: Final[int] = 1 << 27
 
@@ -116,17 +122,17 @@ def missing_task_check(task_names, node_names, pgm_names):
     if missing_node:
         print("Missing Task Manager Entry:")
         print_column(missing_node)
-        result |= 8
+        result |= MISSING_NODE
 
     if missing_task:
         print("Missing Task Definition:")
         print_column(missing_task)
-        result |= 16
+        result |= MISSING_TASK
 
     if missing_pgm:
         print("Missing Task Program:")
         print_column(missing_pgm)
-        result |= 32
+        result |= MISSING_PGM
 
     return result
 
@@ -148,12 +154,12 @@ def project_check(task_names, node_names, rll_pairs):
     if node_dupes:
         print("Duplicated Node Entries:")
         print_column(node_dupes)
-        result |= 1
+        result |= DUP_NODE
 
     if task_dupes:
         print("Duplicated Task Entries:")
         print_column(task_dupes)
-        result |= 2
+        result |= DUP_TASK
 
     if pgm_dupes:
         print("Duplicated Pgm Entries:")
@@ -166,7 +172,7 @@ def project_check(task_names, node_names, rll_pairs):
                 for dup in pgm_dupes
             ]
         )
-        result |= 4
+        result |= DUP_PGM
 
     return result | missing_task_check(task_names, node_names, pgm_names)
 
@@ -214,6 +220,8 @@ def main():
     args = parser.parse_args()
     logger.setLevel(args.loglevel.upper())
 
+    result = 0
+
     task_names: List[str]
     node_names: List[str]
     rll_pairs: List[RllPair] = []
@@ -230,7 +238,8 @@ def main():
 
         logger.debug([(p.taskname, p.infozip.filename) for p in rll_pairs])
 
-        sys.exit(project_check(task_names, node_names, rll_pairs))
+        result = project_check(task_names, node_names, rll_pairs)
+    sys.exit(result)
 
 
 if __name__ == "__main__":
