@@ -60,24 +60,70 @@ class RllPair:
 class ProjErrors:
     """Class to hold all errors found in adpro file."""
 
+    # pylint: disable=too-many-instance-attributes
+    # This is a dataclass and it is not possible to refactor such that a
+    # common dataclass can contain the missing, renamed, and duplicate data
+    # structures for all three task, node, and pgm types
     missing_task: Set[str] = field(default_factory=set)
     missing_node: Set[str] = field(default_factory=set)
     missing_pgm: Set[str] = field(default_factory=set)
+    renamed_task: Set[str] = field(default_factory=set)
+    renamed_node: Set[str] = field(default_factory=set)
+    renamed_pgm: List[RllPair] = field(default_factory=list)
     duplicate_node: List[str] = field(default_factory=list)
     duplicate_task: List[str] = field(default_factory=list)
     duplicate_pgm: List[str] = field(default_factory=list)
 
 
+def make_name_clsr(original: str):
+    """Closure for incrementing a suffix on a base name."""
+    base = original
+    suffix = 0
+
+    def name():
+        nonlocal base
+        return base + (("_" + str(suffix)) if suffix != 0 else "")
+
+    def next_name():
+        nonlocal suffix
+        suffix += 1
+        return name()
+
+    return name, next_name
+
+
 def find_dupes(list_with_dupes):
     """Function to find duplicates in a list."""
     seen = set()
+    renames = set()
     dupes = []
     for item in list_with_dupes:
         if item in seen:
             dupes.append(item)
+            name, nextname = make_name_clsr(item)
+            while name() in renames:
+                nextname()
+            renames.add(name())
         else:
             seen.add(item)
-    return dupes
+    return dupes, renames
+
+
+def find_rll_dupes(list_with_dupes: List[RllPair]):
+    """Function to find duplicates in a list."""
+    seen = set()
+    renames = []
+    dupes = []
+    for item in list_with_dupes:
+        if item.taskname in seen:
+            dupes.append(item.taskname)
+            name, nextname = make_name_clsr(item.taskname)
+            while nextname() in (n for n, _ in renames):
+                pass
+            renames.append(RllPair(name(), item.infozip))
+        else:
+            seen.add(item.taskname)
+    return dupes, renames
 
 
 def print_column(list_to_print):
@@ -181,9 +227,9 @@ def project_check(
     pgm_names = [p.taskname for p in rll_pairs]
     logger.debug(pgm_names)
 
-    found_errors.duplicate_task = find_dupes(task_names)
-    found_errors.duplicate_node = find_dupes(node_names)
-    found_errors.duplicate_pgm = find_dupes(pgm_names)
+    found_errors.duplicate_task, found_errors.renamed_task = find_dupes(task_names)
+    found_errors.duplicate_node, found_errors.renamed_node = find_dupes(node_names)
+    found_errors.duplicate_pgm, found_errors.renamed_pgm = find_rll_dupes(rll_pairs)
     logger.debug("task_dupes:%s", found_errors.duplicate_task)
     logger.debug("node_dupes:%s", found_errors.duplicate_node)
     logger.debug("pgm_dupes:%s", found_errors.duplicate_pgm)
@@ -248,6 +294,7 @@ def fix_program_prj(
     projfile: ZipFile, found_errors: ProjErrors, fixlist: List[FixFile]
 ):
     """Function to fix errors in program.prj."""
+    _ = (projfile, found_errors, fixlist)
 
 
 def in_fixlist(chkfile: ZipInfo, fixlist: List[FixFile]):
@@ -264,7 +311,7 @@ def in_fixlist(chkfile: ZipInfo, fixlist: List[FixFile]):
 def fix_project(projfilestr: str, fixfilestr: str, found_errors: ProjErrors):
     """Function to fix errors in adpro file."""
     print("Attempting to fix")
-    fixlist: list[FixFile] = []
+    fixlist: List[FixFile] = []
     tempbuf = BytesIO()
     with ZipFile(projfilestr, mode="r") as projfile:
         fix_program_prj(projfile, found_errors, fixlist)
