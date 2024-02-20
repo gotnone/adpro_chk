@@ -19,6 +19,7 @@ import logging
 import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from io import BytesIO
 from typing import IO, AnyStr, Final, List, Set
 from zipfile import ZipFile, ZipInfo
 
@@ -36,6 +37,14 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
 )
+
+
+@dataclass
+class FixFile:
+    """Class to contain ZipInfo and BytesIO filebuffer of fixed files."""
+
+    infozip: ZipInfo
+    filebuf: BytesIO
 
 
 @dataclass
