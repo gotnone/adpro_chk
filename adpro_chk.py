@@ -157,13 +157,15 @@ def project_check(task_names, node_names, rll_pairs):
 
     if pgm_dupes:
         print("Duplicated Pgm Entries:")
-        for dup in pgm_dupes:
-            print(
+        print_column(
+            [
                 f"{dup} : "
                 + ", ".join(
-                    [f"'{p.infozip.filename}'" for p in rll_pairs if p.taskname in dup]
+                    [p.infozip.filename for p in rll_pairs if p.taskname == dup]
                 )
-            )
+                for dup in pgm_dupes
+            ]
+        )
         result |= 4
 
     return result | missing_task_check(task_names, node_names, pgm_names)
