@@ -32,6 +32,7 @@ MISSING_PGM: Final[int] = 1 << 5
 CORRUPT_PROGRAM_PRJ: Final[int] = 1 << 25
 CORRUPT_PGMFILE: Final[int] = 1 << 26
 MISSING_PGMNAME: Final[int] = 1 << 27
+MAGIC_NUM: Final[bytes] = b"\xad\xc0\x30\x00"
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -243,6 +244,53 @@ def taskfile_parse(taskfile: IO[AnyStr], filename: str):
     sys.exit(MISSING_PGMNAME)
 
 
+def fix_program_prj(
+    projfile: ZipFile, found_errors: ProjErrors, fixlist: List[FixFile]
+):
+    """Function to fix errors in program.prj."""
+
+
+def in_fixlist(chkfile: ZipInfo, fixlist: List[FixFile]):
+    """Function to return FixFile if chkfile in fixlist."""
+    index = next(
+        (i for i, f in enumerate(fixlist) if f.infozip.filename == chkfile.filename),
+        None,
+    )
+    if index is not None:
+        return fixlist.pop(index)
+    return None
+
+
+def fix_project(projfilestr: str, fixfilestr: str, found_errors: ProjErrors):
+    """Function to fix errors in adpro file."""
+    print("Attempting to fix")
+    fixlist: list[FixFile] = []
+    tempbuf = BytesIO()
+    with ZipFile(projfilestr, mode="r") as projfile:
+        fix_program_prj(projfile, found_errors, fixlist)
+        with ZipFile(tempbuf, mode="w") as fixfile:
+            for info in projfile.infolist():
+                fix = in_fixlist(info, fixlist)
+                # Use fixlist filebuf contents for modified files
+                if fix is not None:
+                    fix.filebuf.seek(0)
+                    fixfile.writestr(fix.infozip, fix.filebuf.read())
+                # Pass unchanged files through to output zip
+                else:
+                    with projfile.open(info) as inputfile:
+                        fixfile.writestr(info, inputfile.read())
+
+            # If there are remaining fixlist items write them out
+            for fix in fixlist:
+                fix.filebuf.seek(0)
+                fixfile.writestr(fix.infozip, fix.filebuf.read())
+
+    with open(fixfilestr, "wb") as outfile:
+        tempbuf.seek(0)
+        outfile.write(MAGIC_NUM)
+        outfile.write(tempbuf.read())
+
+
 def main():
     """Program main() function."""
     logger = logging.getLogger(__name__)
@@ -253,6 +301,13 @@ def main():
         "--loglevel",
         default="warning",
         help="Provide logging level. Example --loglevel debug, default=warning",
+    )
+    parser.add_argument(
+        "--fix",
+        help=(
+            "Attempt to fix errors, saving to a new file. Example --fix"
+            " Fixed_Project.adpro"
+        ),
     )
     args = parser.parse_args()
     logger.setLevel(args.loglevel.upper())
@@ -277,6 +332,10 @@ def main():
         logger.debug([(p.taskname, p.infozip.filename) for p in rll_pairs])
 
         result = project_check(task_names, node_names, rll_pairs, found_errors)
+
+    if args.fix is not None and result != 0:
+        fix_project(args.projfile, args.fix, found_errors)
+
     sys.exit(result)
 
 
