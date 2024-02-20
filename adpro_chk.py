@@ -18,8 +18,8 @@ import argparse
 import logging
 import sys
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
-from typing import IO, AnyStr, Final, List
+from dataclasses import dataclass, field
+from typing import IO, AnyStr, Final, List, Set
 from zipfile import ZipFile, ZipInfo
 
 DUP_NODE: Final[int] = 1
@@ -44,6 +44,18 @@ class RllPair:
 
     taskname: str
     infozip: ZipInfo
+
+
+@dataclass
+class ProjErrors:
+    """Class to hold all errors found in adpro file."""
+
+    missing_task: Set[str] = field(default_factory=set)
+    missing_node: Set[str] = field(default_factory=set)
+    missing_pgm: Set[str] = field(default_factory=set)
+    duplicate_node: List[str] = field(default_factory=list)
+    duplicate_task: List[str] = field(default_factory=list)
+    duplicate_pgm: List[str] = field(default_factory=list)
 
 
 def find_dupes(list_with_dupes):
@@ -103,7 +115,12 @@ def program_prj_parse(prjfile):
     return [task_names, node_names]
 
 
-def missing_task_check(task_names, node_names, pgm_names):
+def missing_task_check(
+    task_names: List[str],
+    node_names: List[str],
+    pgm_names: List[str],
+    found_errors: ProjErrors,
+):
     """Function checks to see if there are missing tasks."""
     logger = logging.getLogger(__name__)
     task_set = set(task_names)
@@ -115,9 +132,9 @@ def missing_task_check(task_names, node_names, pgm_names):
     logger.debug("Pgm_set\n%s", pgm_set)
     logger.debug("Super_set\n%s", super_set)
 
-    missing_task = super_set - task_set
-    missing_node = super_set - node_set
-    missing_pgm = super_set - pgm_set
+    found_errors.missing_task = super_set - task_set
+    found_errors.missing_node = super_set - node_set
+    found_errors.missing_pgm = super_set - pgm_set
 
     prj_common = task_set & node_set
 
@@ -125,49 +142,54 @@ def missing_task_check(task_names, node_names, pgm_names):
     logger.debug("Common:\n%s", prj_common)
 
     result = 0
-    if missing_node:
+    if found_errors.missing_node:
         print("Missing Task Manager Entry:")
-        print_column(missing_node)
+        print_column(found_errors.missing_node)
         result |= MISSING_NODE
 
-    if missing_task:
+    if found_errors.missing_task:
         print("Missing Task Definition:")
-        print_column(missing_task)
+        print_column(found_errors.missing_task)
         result |= MISSING_TASK
 
-    if missing_pgm:
+    if found_errors.missing_pgm:
         print("Missing Task Program:")
-        print_column(missing_pgm)
+        print_column(found_errors.missing_pgm)
         result |= MISSING_PGM
 
     return result
 
 
-def project_check(task_names, node_names, rll_pairs):
+def project_check(
+    task_names: List[str],
+    node_names: List[str],
+    rll_pairs: List[RllPair],
+    found_errors: ProjErrors,
+):
     """Function to check for corruption in an .adpro file."""
     logger = logging.getLogger(__name__)
     pgm_names = [p.taskname for p in rll_pairs]
     logger.debug(pgm_names)
 
-    task_dupes = find_dupes(task_names)
-    node_dupes = find_dupes(node_names)
-    pgm_dupes = find_dupes(pgm_names)
-    logger.debug("task_dupes:%s", task_dupes)
-    logger.debug("node_dupes:%s", node_dupes)
-    logger.debug("pgm_dupes:%s", pgm_dupes)
+    found_errors.duplicate_task = find_dupes(task_names)
+    found_errors.duplicate_node = find_dupes(node_names)
+    found_errors.duplicate_pgm = find_dupes(pgm_names)
+    logger.debug("task_dupes:%s", found_errors.duplicate_task)
+    logger.debug("node_dupes:%s", found_errors.duplicate_node)
+    logger.debug("pgm_dupes:%s", found_errors.duplicate_pgm)
 
     result = 0
-    if node_dupes:
+    if found_errors.duplicate_node:
         print("Duplicated Node Entries:")
-        print_column(node_dupes)
+        print_column(found_errors.duplicate_node)
         result |= DUP_NODE
 
-    if task_dupes:
+    if found_errors.duplicate_task:
         print("Duplicated Task Entries:")
-        print_column(task_dupes)
+        print_column(found_errors.duplicate_task)
         result |= DUP_TASK
 
-    if pgm_dupes:
+    if found_errors.duplicate_pgm:
         print("Duplicated Pgm Entries:")
         print_column(
             [
@@ -175,12 +197,12 @@ def project_check(task_names, node_names, rll_pairs):
                 + ", ".join(
                     [p.infozip.filename for p in rll_pairs if p.taskname == dup]
                 )
-                for dup in pgm_dupes
+                for dup in found_errors.duplicate_pgm
             ]
         )
         result |= DUP_PGM
 
-    return result | missing_task_check(task_names, node_names, pgm_names)
+    return result | missing_task_check(task_names, node_names, pgm_names, found_errors)
 
 
 def taskfile_parse(taskfile: IO[AnyStr], filename: str):
@@ -228,6 +250,7 @@ def main():
 
     result = 0
 
+    found_errors = ProjErrors()
     task_names: List[str]
     node_names: List[str]
     rll_pairs: List[RllPair] = []
@@ -244,7 +267,7 @@ def main():
 
         logger.debug([(p.taskname, p.infozip.filename) for p in rll_pairs])
 
-        result = project_check(task_names, node_names, rll_pairs)
+        result = project_check(task_names, node_names, rll_pairs, found_errors)
     sys.exit(result)
 
 
