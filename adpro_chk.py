@@ -19,7 +19,7 @@ import logging
 import sys
 from dataclasses import dataclass, field
 from io import BytesIO
-from typing import IO, AnyStr, Final, List, Set
+from typing import IO, AnyStr, BinaryIO, Final, List, Set
 from zipfile import ZipFile, ZipInfo
 
 import lxml.etree as ET
@@ -74,6 +74,14 @@ class ProjErrors:
     duplicate_node: List[str] = field(default_factory=list)
     duplicate_task: List[str] = field(default_factory=list)
     duplicate_pgm: List[str] = field(default_factory=list)
+
+
+def write_tree(tree: ET._ElementTree, output: BinaryIO):
+    """Write an ElementTree to an IO output object with adpro style xml declaration."""
+    output.write(
+        b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        + ET.tostring(tree.getroot(), method="xml", encoding="UTF-8")
+    )
 
 
 def make_name_clsr(original: str):
