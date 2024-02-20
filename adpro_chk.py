@@ -28,6 +28,7 @@ DUP_PGM: Final[int] = 1 << 2
 MISSING_NODE: Final[int] = 1 << 3
 MISSING_TASK: Final[int] = 1 << 4
 MISSING_PGM: Final[int] = 1 << 5
+CORRUPT_PROGRAM_PRJ: Final[int] = 1 << 25
 CORRUPT_PGMFILE: Final[int] = 1 << 26
 MISSING_PGMNAME: Final[int] = 1 << 27
 
@@ -67,7 +68,12 @@ def program_prj_parse(prjfile):
     """Function to parse the program.prj file."""
     logger = logging.getLogger(__name__)
     # Parse the xml file
-    root = ET.fromstring(prjfile.read())
+    root: ET.Element
+    try:
+        root = ET.fromstring(prjfile.read())
+    except ET.ParseError:
+        logger.error("Program Abort\nUnable to parse program.prj file")
+        sys.exit(CORRUPT_PROGRAM_PRJ)
 
     # Create an empty list to store the node names
     node_names = []
