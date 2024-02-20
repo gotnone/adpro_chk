@@ -299,11 +299,89 @@ def taskfile_parse(taskfile: IO[AnyStr], filename: str):
     sys.exit(MISSING_PGMNAME)
 
 
+def fix_task_duplicates(root: ET._Element, found_errors: ProjErrors):
+    """Function to fix duplicate tasks."""
+    for taskname in found_errors.duplicate_task:
+        print(f"Attempting to fix duplicate task {taskname}")
+        # Find all elements in <tasks> with <taskname> = taskname
+        tasks = root.findall(f"./tasks/taskName/[.='{taskname}']")
+        name, nextname = make_name_clsr(taskname)
+        for t in tasks[1:]:
+            t.text = nextname()
+            if name() not in found_errors.renamed_node:
+                found_errors.missing_node.add(name())
+            if name() not in [n.taskname for n in found_errors.renamed_pgm]:
+                found_errors.missing_pgm.add(name())
+            print(f"Renamed task {taskname} duplicate to {name()}")
+
+
+def fix_node_duplicates(root: ET._Element, found_errors: ProjErrors):
+    """Function to fix duplicate nodes."""
+    for nodename in found_errors.duplicate_node:
+        print(f"Attempting to fix duplicate node {nodename}")
+        # Find all elements in <paths> which have <folder> = false with
+        # tag name <nodeName> = nodename
+        nodes = root.findall(f".//paths/[folder='false']/[nodeName='{nodename}']")
+        name, nextname = make_name_clsr(nodename)
+        for n in nodes[1:]:
+            n.text = nextname()
+            if name() not in found_errors.renamed_task:
+                found_errors.missing_task.add(name())
+            if name() not in [n.taskname for n in found_errors.renamed_pgm]:
+                found_errors.missing_pgm.add(name())
+            print(f"Renamed node {nodename} duplicate to {name()}")
+
+
+def fix_pgm_duplicates(
+    projfile: ZipFile, found_errors: ProjErrors, fixlist: List[FixFile]
+):
+    """Function to fix duplicate task programs."""
+    logger = logging.getLogger(__name__)
+
+    for pgmpair in found_errors.renamed_pgm:
+        print(f"Attempting to fix duplicate task program {pgmpair.infozip.filename}")
+        # Find all elements with tag name <NodeName>
+        tree: ET._ElementTree
+        with projfile.open(pgmpair.infozip, mode="r") as pgmfile:
+            tree = ET.parse(pgmfile)
+        if tree is None:
+            logger.error(
+                "Program Abort\nUnable to parse task program %s",
+                pgmpair.infozip.filename,
+            )
+            sys.exit(CORRUPT_PGMFILE)
+        root = tree.getroot()
+        # Find all elements with tag name <pgmName>
+        pgm = root.find("./pgmName")
+        if pgm is not None:
+            before = pgm.text
+            pgm.text = pgmpair.taskname
+            print(f"Renamed node {before} duplicate to {pgmpair.taskname}")
+            fixlist.append(FixFile(pgmpair.infozip, BytesIO()))
+            write_tree(tree, fixlist[-1].filebuf)
+
+
 def fix_program_prj(
     projfile: ZipFile, found_errors: ProjErrors, fixlist: List[FixFile]
 ):
     """Function to fix errors in program.prj."""
-    _ = (projfile, found_errors, fixlist)
+    logger = logging.getLogger(__name__)
+    tree: ET._ElementTree
+    zipinfo = next((x for x in projfile.infolist() if x.filename == "program.prj"))
+    if zipinfo is not None:
+        logger.debug("Found zipinfo for program.prj %s", zipinfo)
+        with projfile.open(zipinfo, mode="r") as program_prj:
+            # Parse the xml file
+            tree = ET.parse(program_prj)
+        if tree is not None:
+            root = tree.getroot()
+            # placeholder for program.prj FileFix
+            fixlist.append(FixFile(zipinfo, BytesIO()))
+            fix_task_duplicates(root, found_errors)
+            fix_node_duplicates(root, found_errors)
+            fix_pgm_duplicates(projfile, found_errors, fixlist)
+
+            write_tree(tree, fixlist[0].filebuf)
 
 
 def in_fixlist(chkfile: ZipInfo, fixlist: List[FixFile]):

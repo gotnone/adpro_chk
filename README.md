@@ -15,8 +15,35 @@ Currently checks the adpro file for the following issues:
    file
 6. Tasks with a duplicate name in the `tasks/*.rll` files
 
+## Automatic Repair of Corrupt .adpro Files
+
+Warning: This is extremely experimental *USE AT YOUR OWN RISK*.
+
+Make sure that you are working on a backup of the corrupted .adpro file. The
+repair functionality should make an in memory copy of the corrupted .adpro file
+and manipulate that copy.  The authors of adpro_chk assume no liability for
+your use of this experimental feature.
+
+Using the command line option `--fix output_file_name.adpro` will attempt to
+fix a corrupt file.
+
+Currently implemented fixes:
+
+- Duplicate Task Fix: This will rename a duplicate task, using the existing
+  `<taskName>` and appending an `_1` or the next available integer.
+- Duplicate Node Fix: This will rename a duplicate entry in the Task Management
+  List, using the existing `<nodeName>` and appending `_1` or the next
+  available integer.
+- Duplicate Pgm Fix: This will rename a duplicate Task Program using the
+  existing `<pgmName>` value and appending an `_1` or the next available integer.
+
 ## How to run
+
 `adpro_chk your_productivity_project.adpro`
+
+or
+
+`adpro_chk your_productivity_project.adpro --fix your_fixed_project.adpro`
 
 ## Example Output
 
@@ -40,4 +67,19 @@ Zone10SM_BC
 ```console
 $ adpro_chk.py Good_Project.adpro ; echo $?
 0
+```
+
+```console
+$ adpro_chk.py Test_my_broken.adpro --fix My_Fixed.adpro
+Duplicated Task Entries:
+Zone10SM_BC
+
+Duplicated Pgm Entries:
+Zone10SM_BC : 'task\T12.rll', 'task\T41.rll'
+
+Attempting to fix
+Attempting to fix duplicate task Zone10SM_BC
+Renamed task Zone10SM_BC duplicate to Zone10SM_BC_1
+Attempting to fix duplicate task program task\T41.rll
+Renamed node Zone10SM_BC duplicate to Zone10SM_BC_1
 ```
