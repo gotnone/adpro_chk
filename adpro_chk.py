@@ -53,15 +53,12 @@ def program_prj_parse(prjfile):
     # Create an empty list to store the node names
     node_names = []
 
-    # Find all elements with tag name <NodeName>
-    paths = root.findall(".//paths")
+    # Find all elements in <paths> which have <folder> = false with tag name <nodeName>
+    nodes = root.findall(".//paths/[folder='false']/nodeName")
 
     # Loop over the nodes and append their text to the list
-    for path in paths:
-        if path.find("[folder='false']"):
-            node = path.find("nodeName")
-            if node is not None:
-                node_names.append(node.text)
+    for node in nodes:
+        node_names.append(node.text)
 
     # Print the list of node names
     logger.debug("node_names:\n%s", node_names)
