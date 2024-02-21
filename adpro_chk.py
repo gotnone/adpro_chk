@@ -17,11 +17,12 @@ Files."""
 import argparse
 import logging
 import sys
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from io import BytesIO
 from typing import IO, AnyStr, Final, List, Set
 from zipfile import ZipFile, ZipInfo
+
+import lxml.etree as ET
 
 DUP_NODE: Final[int] = 1
 DUP_TASK: Final[int] = 1 << 1
@@ -136,7 +137,7 @@ def program_prj_parse(prjfile):
     """Function to parse the program.prj file."""
     logger = logging.getLogger(__name__)
     # Parse the xml file
-    root: ET.Element
+    root: ET._Element
     try:
         root = ET.fromstring(prjfile.read())
     except ET.ParseError:
@@ -266,7 +267,7 @@ def taskfile_parse(taskfile: IO[AnyStr], filename: str):
     logger = logging.getLogger(__name__)
     logger.debug(taskfile)
     # Parse the xml file
-    root: ET.Element
+    root: ET._Element
     try:
         root = ET.fromstring(taskfile.read())
     except ET.ParseError:
