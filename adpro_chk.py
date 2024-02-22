@@ -453,11 +453,16 @@ def fix_task_missing(root: ET._Element, found_errors: ProjErrors):
 
 def make_paths_element(nodename: str):
     """Create a new paths element."""
-    paths = ET.Element("paths")
-    ET.SubElement(paths, "folder").text = "false"
-    ET.SubElement(paths, "nodeName").text = f"{nodename}"
-    ET.SubElement(paths, "path").text = "~Project~Tasks~Run Every Scan~"
-    return paths
+    # pylint: disable=line-too-long
+    # This is an xml string
+    xmlstr = f"<value><paths><folder>false</folder><nodeName>{nodename}</nodeName><path>~Project~Tasks~Run Every Scan~</path></paths></value>"
+    tree = ET.fromstring(xmlstr)
+    paths = tree.find("paths")
+    if paths is not None:
+        return paths
+    logger = logging.getLogger(__name__)
+    logger.error("Program Abort\nUnable to parse XML in make_paths_element()")
+    sys.exit(CORRUPT_XML)
 
 
 def fix_node_missing(root: ET._Element, found_errors: ProjErrors):
