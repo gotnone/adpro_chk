@@ -17,11 +17,12 @@ Files."""
 import argparse
 import datetime
 import logging
+import re
 import sys
 from dataclasses import dataclass, field
 from io import BytesIO
 from typing import IO, AnyStr, BinaryIO, Callable, Final, List, Set
-from zipfile import ZipFile, ZipInfo
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 import lxml.etree as ET
 
@@ -112,6 +113,19 @@ def make_name_clsr(original: str):
     return name, next_name
 
 
+def max_pgmnumber(projfile: ZipFile):
+    """Function for finding the maximum task program number."""
+    return max(
+        (
+            int(m.group(1))
+            for m in (
+                re.match(r"task\\T(\d+)[.]rll", i.filename) for i in projfile.infolist()
+            )
+            if m is not None
+        )
+    )
+
+
 def max_tasknumber(tasks: List[ET._Element]):
     """Function for finding the maximum tasknumber of a given Element."""
     return max(
@@ -135,6 +149,11 @@ def next_number_clsr(basefunc: Callable, *args, **kwargs):
         return tasknumber()
 
     return tasknumber, nexttasknumber
+
+
+def max_prognumber_clsr(projfile: ZipFile):
+    """Closure for incrementing the maximum task program number."""
+    return next_number_clsr(max_pgmnumber, projfile)
 
 
 def max_tasknumber_clsr(tasks: List[ET._Element]):
@@ -496,6 +515,67 @@ def fix_node_missing(root: ET._Element, found_errors: ProjErrors):
         value.insert(0, paths)
 
 
+def make_pgm_element_tree(taskname: str):
+    """Function to create a task program file."""
+    xsi = NSMAP["xsi"]
+    root = ET.Element("Program", nsmap=NSMAP)
+    rungs = ET.SubElement(root, "rungs", {f"{{{xsi}}}type": "adcXmlRllRung"})
+    ET.SubElement(rungs, "comment").text = "Empty Task Created by adpro_chk"
+    ET.SubElement(rungs, "disabled").text = "false"
+    elements = ET.SubElement(rungs, "elements", {f"{{{xsi}}}type": "adcXmlRllElement"})
+    ET.SubElement(elements, "elementType").text = "1"
+    ET.SubElement(elements, "subType").text = "7"
+    ET.SubElement(elements, "position").text = "0"
+    ET.SubElement(elements, "repeat").text = "20"
+    elements = ET.SubElement(rungs, "elements", {f"{{{xsi}}}type": "adcXmlRllElement"})
+    ET.SubElement(elements, "elementType").text = "0"
+    instruction = ET.SubElement(
+        elements, "instruction", {f"{{{xsi}}}type": "adcInstEND"}
+    )
+    ET.SubElement(instruction, "comment")
+    ET.SubElement(instruction, "inUse").text = "true"
+    itnm = ET.SubElement(instruction, "indexTagNameMap", {f"{{{xsi}}}type": "map"})
+    ET.SubElement(itnm, "type").text = "java.util.HashMap"
+    ET.SubElement(instruction, "isEnabled").text = "true"
+    ET.SubElement(instruction, "isValid").text = "false"
+    ET.SubElement(instruction, "rungPlacements").text = "1"
+    ET.SubElement(instruction, "usingStructure").text = "false"
+    ET.SubElement(elements, "subType").text = "0"
+    ET.SubElement(elements, "position").text = "21"
+    ET.SubElement(elements, "repeat").text = "0"
+    ET.SubElement(rungs, "rungNumber").text = "0"
+    ET.SubElement(rungs, "subRungNumber").text = "0"
+    ET.SubElement(root, "pgmName").text = taskname
+    ET.SubElement(root, "pgmType").text = "1"
+    return ET.ElementTree(root)
+
+
+def make_pgm_fix_file(taskname: str, tasknumber: str):
+    """Function to create a task program FixFile entry."""
+
+    def zipdt(dt=datetime.datetime.now()):
+        return (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+
+    ff = FixFile(ZipInfo(f"task/T{tasknumber}.rll", zipdt()), BytesIO())
+    ff.infozip.compress_type = ZIP_DEFLATED
+    tree = make_pgm_element_tree(taskname)
+    write_tree(tree, ff.filebuf)
+    return ff
+
+
+def fix_pgm_missing(
+    projfile: ZipFile, found_errors: ProjErrors, fixlist: List[FixFile]
+):
+    """Function to fix missing task programs."""
+    # nexttasknumber must be initialized outside of for loop in the event
+    # that there are multiple missing task programs
+    _, nexttasknumber = max_prognumber_clsr(projfile)
+    for taskname in found_errors.missing_pgm:
+        fix = make_pgm_fix_file(taskname, nexttasknumber())
+        print(f"Creating task program file for {taskname} as {fix.infozip.filename}")
+        fixlist.append(fix)
+
+
 def fix_program_prj(
     projfile: ZipFile, found_errors: ProjErrors, fixlist: List[FixFile]
 ):
@@ -517,6 +597,7 @@ def fix_program_prj(
             fix_pgm_duplicates(projfile, found_errors, fixlist)
             fix_task_missing(root, found_errors)
             fix_node_missing(root, found_errors)
+            fix_pgm_missing(projfile, found_errors, fixlist)
 
             write_tree(tree, fixlist[0].filebuf)
 

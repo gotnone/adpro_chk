@@ -33,15 +33,21 @@ Currently implemented fixes:
   `<taskName>` and appending an `_1` or the next available integer.
 - Duplicate Node Fix: This will rename a duplicate entry in the Task Management
   List, using the existing `<nodeName>` and appending `_1` or the next
-  available integer.
+  available integer.\*
 - Duplicate Pgm Fix: This will rename a duplicate Task Program using the
   existing `<pgmName>` value and appending an `_1` or the next available integer.
 - Missing Task Fix: This will attempt to create a `<tasks>` entry for a missing
   task.  This missing task condition can often occur as side effect of the
-  duplicate node and pgm fixes.
+  duplicate node and pgm fixes.\*
 - Missing Node Fix: This will attempt to create a `<paths>` entry for a missing
   entry in the Task Management List.  This missing node condition can often
   occur as a side effect of the duplicate task and pgm fixes.
+- Missing PGM Fix: This will attempt to create a `tasks/#.rll` task program
+  file if it is missing.  The missing pgm consition can often occur as a side
+  effect of the duplicate task and node fixes.\*
+
+\* These fixes have not been tested on actual examples of corrupted .adpro
+files.
 
 ## How to run
 
