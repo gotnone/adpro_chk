@@ -31,6 +31,7 @@ DUP_PGM: Final[int] = 1 << 2
 MISSING_NODE: Final[int] = 1 << 3
 MISSING_TASK: Final[int] = 1 << 4
 MISSING_PGM: Final[int] = 1 << 5
+CORRUPT_XML: Final[int] = 1 << 24
 CORRUPT_PROGRAM_PRJ: Final[int] = 1 << 25
 CORRUPT_PGMFILE: Final[int] = 1 << 26
 MISSING_PGMNAME: Final[int] = 1 << 27
@@ -411,24 +412,16 @@ def make_timestamp():
 
 def make_task_element(taskname: str, tasknumber: str, taskseqnum: str):
     """Create a new tasks element."""
-    xsi = NSMAP["xsi"]
-    task = ET.Element("tasks", nsmap=NSMAP)
-    ET.SubElement(task, "author").text = "adpro_chk"
-    ET.SubElement(task, "backgroundRGB").text = "16777215"
-    ET.SubElement(task, "comment")
-    ET.SubElement(task, "createTime").text = make_timestamp()
-    ET.SubElement(task, "execOption").text = "0"
-    localtags = ET.SubElement(task, "localTags")
-    tags = ET.SubElement(localtags, "tags", {f"{{{xsi}}}type": "group"})
-    ET.SubElement(tags, "type").text = "java.util.ArrayList"
-    ET.SubElement(task, "protection").text = "false"
-    ET.SubElement(task, "scanOption").text = "0"
-    ET.SubElement(task, "taskName").text = f"{taskname}"
-    ET.SubElement(task, "taskNumber").text = f"{tasknumber}"
-    ET.SubElement(task, "taskSeqNum").text = f"{taskseqnum}"
-    ET.SubElement(task, "taskType").text = "0"
-    ET.SubElement(task, "wireRGB").text = "0"
-    return task
+    # pylint: disable=line-too-long
+    # This is an xml string
+    xmlstr = f'<Project xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><tasks><author>adpro_chk</author><backgroundRGB>16777215</backgroundRGB><comment/><createTime>{make_timestamp()}</createTime><execOption>0</execOption><localTags><tags xsi:type="group"><type>java.util.ArrayList</type></tags></localTags><protection>false</protection><scanOption>0</scanOption><taskName>{taskname}</taskName><taskNumber>{tasknumber}</taskNumber><taskSeqNum>{taskseqnum}</taskSeqNum><taskType>0</taskType><wireRGB>0</wireRGB></tasks></Project>'
+    tree = ET.fromstring(xmlstr)
+    task = tree.find("./tasks")
+    if task is not None:
+        return task
+    logger = logging.getLogger(__name__)
+    logger.error("Program Abort\nUnable to parse XML in make_task_element()")
+    sys.exit(CORRUPT_XML)
 
 
 def fix_task_missing(root: ET._Element, found_errors: ProjErrors):
