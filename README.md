@@ -36,6 +36,9 @@ Currently implemented fixes:
   available integer.
 - Duplicate Pgm Fix: This will rename a duplicate Task Program using the
   existing `<pgmName>` value and appending an `_1` or the next available integer.
+- Missing Task Fix: This will attempt to create a `<tasks>` entry for a missing
+  task.  This missing task condition can often occur as side effect of the
+  duplicate node and pgm fixes.
 
 ## How to run
 

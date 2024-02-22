@@ -15,11 +15,12 @@
 Files."""
 
 import argparse
+import datetime
 import logging
 import sys
 from dataclasses import dataclass, field
 from io import BytesIO
-from typing import IO, AnyStr, BinaryIO, Final, List, Set
+from typing import IO, AnyStr, BinaryIO, Callable, Final, List, Set
 from zipfile import ZipFile, ZipInfo
 
 import lxml.etree as ET
@@ -33,7 +34,14 @@ MISSING_PGM: Final[int] = 1 << 5
 CORRUPT_PROGRAM_PRJ: Final[int] = 1 << 25
 CORRUPT_PGMFILE: Final[int] = 1 << 26
 MISSING_PGMNAME: Final[int] = 1 << 27
+MISSING_TASKNUM: Final[int] = 1 << 28
+
 MAGIC_NUM: Final[bytes] = b"\xad\xc0\x30\x00"
+
+NSMAP: Final[dict] = {
+    "xs": "http://www.w3.org/2001/XMLSchema",
+    "xsi": "http://www.w3.org/2001/XMLSchema-instance",
+}
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -99,6 +107,36 @@ def make_name_clsr(original: str):
         return name()
 
     return name, next_name
+
+
+def max_tasknumber(tasks: List[ET._Element]):
+    """Function for finding the maximum tasknumber of a given Element."""
+    return max(
+        (int(i) for i in (t.findtext("./taskNumber") for t in tasks) if i is not None)
+    )
+
+
+def next_number_clsr(basefunc: Callable, *args, **kwargs):
+    """Closure to increment a base value derived from user supplied base function."""
+    base = basefunc(*args, **kwargs)
+    increment = 0
+
+    def tasknumber():
+        nonlocal base
+        nonlocal increment
+        return str(base + increment)
+
+    def nexttasknumber():
+        nonlocal increment
+        increment += 1
+        return tasknumber()
+
+    return tasknumber, nexttasknumber
+
+
+def max_tasknumber_clsr(tasks: List[ET._Element]):
+    """Closure for incrementing the maximum tasknumber of a given Element."""
+    return next_number_clsr(max_tasknumber, tasks)
 
 
 def find_dupes(list_with_dupes):
@@ -361,6 +399,63 @@ def fix_pgm_duplicates(
             write_tree(tree, fixlist[-1].filebuf)
 
 
+def make_timestamp():
+    """Function to make timestamp in format expected by adpro file."""
+    now = datetime.datetime.now().astimezone()
+    return (
+        now.strftime("%Y-%m-%dT%H:%M:%S.")
+        + f"{int(now.microsecond /1000)}"
+        + now.strftime("%z")
+    )
+
+
+def make_task_element(taskname: str, tasknumber: str, taskseqnum: str):
+    """Create a new tasks element."""
+    xsi = NSMAP["xsi"]
+    task = ET.Element("tasks", nsmap=NSMAP)
+    ET.SubElement(task, "author").text = "adpro_chk"
+    ET.SubElement(task, "backgroundRGB").text = "16777215"
+    ET.SubElement(task, "comment")
+    ET.SubElement(task, "createTime").text = make_timestamp()
+    ET.SubElement(task, "execOption").text = "0"
+    localtags = ET.SubElement(task, "localTags")
+    tags = ET.SubElement(localtags, "tags", {f"{{{xsi}}}type": "group"})
+    ET.SubElement(tags, "type").text = "java.util.ArrayList"
+    ET.SubElement(task, "protection").text = "false"
+    ET.SubElement(task, "scanOption").text = "0"
+    ET.SubElement(task, "taskName").text = f"{taskname}"
+    ET.SubElement(task, "taskNumber").text = f"{tasknumber}"
+    ET.SubElement(task, "taskSeqNum").text = f"{taskseqnum}"
+    ET.SubElement(task, "taskType").text = "0"
+    ET.SubElement(task, "wireRGB").text = "0"
+    return task
+
+
+def fix_task_missing(root: ET._Element, found_errors: ProjErrors):
+    """Function to fix missing tasks."""
+    logger = logging.getLogger(__name__)
+
+    # Find all tasks
+    tasks = root.findall("./tasks")
+    _, nexttasknumber = max_tasknumber_clsr(tasks)
+
+    for taskname in found_errors.missing_task:
+        print(f"Attempting to fix missing task {taskname}")
+        task = make_task_element(taskname, nexttasknumber(), "0")
+        # Since we are placing the new task at taskSeqNum = 0, we increment
+        # the taskSeqNum for all the other tasks
+        for t in tasks:
+            taskseqnum = t.find("./taskSeqNum")
+            if taskseqnum is None or taskseqnum.text is None:
+                logger.error(
+                    "Program Abort\nUnable to increment '<taskSeqNum>' for %s",
+                    t.findtext("./taskName"),
+                )
+                sys.exit(MISSING_TASKNUM)
+            taskseqnum.text = str(int(taskseqnum.text) + 1)
+        root.append(task)
+
+
 def fix_program_prj(
     projfile: ZipFile, found_errors: ProjErrors, fixlist: List[FixFile]
 ):
@@ -380,6 +475,7 @@ def fix_program_prj(
             fix_task_duplicates(root, found_errors)
             fix_node_duplicates(root, found_errors)
             fix_pgm_duplicates(projfile, found_errors, fixlist)
+            fix_task_missing(root, found_errors)
 
             write_tree(tree, fixlist[0].filebuf)
 
