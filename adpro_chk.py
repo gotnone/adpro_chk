@@ -517,37 +517,10 @@ def fix_node_missing(root: ET._Element, found_errors: ProjErrors):
 
 def make_pgm_element_tree(taskname: str):
     """Function to create a task program file."""
-    xsi = NSMAP["xsi"]
-    root = ET.Element("Program", nsmap=NSMAP)
-    rungs = ET.SubElement(root, "rungs", {f"{{{xsi}}}type": "adcXmlRllRung"})
-    ET.SubElement(rungs, "comment").text = "Empty Task Created by adpro_chk"
-    ET.SubElement(rungs, "disabled").text = "false"
-    elements = ET.SubElement(rungs, "elements", {f"{{{xsi}}}type": "adcXmlRllElement"})
-    ET.SubElement(elements, "elementType").text = "1"
-    ET.SubElement(elements, "subType").text = "7"
-    ET.SubElement(elements, "position").text = "0"
-    ET.SubElement(elements, "repeat").text = "20"
-    elements = ET.SubElement(rungs, "elements", {f"{{{xsi}}}type": "adcXmlRllElement"})
-    ET.SubElement(elements, "elementType").text = "0"
-    instruction = ET.SubElement(
-        elements, "instruction", {f"{{{xsi}}}type": "adcInstEND"}
-    )
-    ET.SubElement(instruction, "comment")
-    ET.SubElement(instruction, "inUse").text = "true"
-    itnm = ET.SubElement(instruction, "indexTagNameMap", {f"{{{xsi}}}type": "map"})
-    ET.SubElement(itnm, "type").text = "java.util.HashMap"
-    ET.SubElement(instruction, "isEnabled").text = "true"
-    ET.SubElement(instruction, "isValid").text = "false"
-    ET.SubElement(instruction, "rungPlacements").text = "1"
-    ET.SubElement(instruction, "usingStructure").text = "false"
-    ET.SubElement(elements, "subType").text = "0"
-    ET.SubElement(elements, "position").text = "21"
-    ET.SubElement(elements, "repeat").text = "0"
-    ET.SubElement(rungs, "rungNumber").text = "0"
-    ET.SubElement(rungs, "subRungNumber").text = "0"
-    ET.SubElement(root, "pgmName").text = taskname
-    ET.SubElement(root, "pgmType").text = "1"
-    return ET.ElementTree(root)
+    # pylint: disable=line-too-long
+    # This is an xml string
+    xmlstr = f'<Program xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><rungs xsi:type="adcXmlRllRung"><comment>Empty Task Created by adpro_chk</comment><disabled>false</disabled><elements xsi:type="adcXmlRllElement"><elementType>1</elementType><subType>7</subType><position>0</position><repeat>20</repeat></elements><elements xsi:type="adcXmlRllElement"><elementType>0</elementType><instruction xsi:type="adcInstEND"><comment/><inUse>true</inUse><indexTagNameMap xsi:type="map"><type>java.util.HashMap</type></indexTagNameMap><isEnabled>true</isEnabled><isValid>false</isValid><rungPlacements>1</rungPlacements><usingStructure>false</usingStructure></instruction><subType>0</subType><position>21</position><repeat>0</repeat></elements><rungNumber>0</rungNumber><subRungNumber>0</subRungNumber></rungs><pgmName>{taskname}</pgmName><pgmType>1</pgmType></Program>'
+    return ET.ElementTree(ET.fromstring(xmlstr))
 
 
 def make_pgm_fix_file(taskname: str, tasknumber: str):
