@@ -36,6 +36,8 @@ CORRUPT_PROGRAM_PRJ: Final[int] = 1 << 25
 CORRUPT_PGMFILE: Final[int] = 1 << 26
 MISSING_PGMNAME: Final[int] = 1 << 27
 MISSING_TASKNUM: Final[int] = 1 << 28
+MISSING_VALUE: Final[int] = 1 << 29
+MISSING_KEY: Final[int] = 1 << 30
 
 MAGIC_NUM: Final[bytes] = b"\xad\xc0\x30\x00"
 
@@ -449,6 +451,46 @@ def fix_task_missing(root: ET._Element, found_errors: ProjErrors):
         root.append(task)
 
 
+def make_paths_element(nodename: str):
+    """Create a new paths element."""
+    paths = ET.Element("paths")
+    ET.SubElement(paths, "folder").text = "false"
+    ET.SubElement(paths, "nodeName").text = f"{nodename}"
+    ET.SubElement(paths, "path").text = "~Project~Tasks~Run Every Scan~"
+    return paths
+
+
+def fix_node_missing(root: ET._Element, found_errors: ProjErrors):
+    """Function to fix missing nodes."""
+    logger = logging.getLogger(__name__)
+
+    for nodename in found_errors.missing_node:
+        print(f"Attempting to fix missing node {nodename}")
+
+        value = root.find("./projectTaskPaths/entry/[key='0']/value")
+        if value is None:
+            value = root.find("./projectTaskPaths/entry/../value")
+            if value is None:
+                logger.error(
+                    "Program Abort\nUnable to find task path '<value>' element in XML"
+                )
+                sys.exit(MISSING_VALUE)
+            key = value.find("../key")
+            if key is None or key.text is None:
+                logger.error(
+                    "Program Abort\nUnable to find task path '<key>'"
+                    " associated with '<value>' %s",
+                    value.text,
+                )
+                sys.exit(MISSING_KEY)
+            logger.warning(
+                "New task path will be added to '<value>' with associate '<key>' %s",
+                key.text,
+            )
+        paths = make_paths_element(nodename)
+        value.insert(0, paths)
+
+
 def fix_program_prj(
     projfile: ZipFile, found_errors: ProjErrors, fixlist: List[FixFile]
 ):
@@ -469,6 +511,7 @@ def fix_program_prj(
             fix_node_duplicates(root, found_errors)
             fix_pgm_duplicates(projfile, found_errors, fixlist)
             fix_task_missing(root, found_errors)
+            fix_node_missing(root, found_errors)
 
             write_tree(tree, fixlist[0].filebuf)
 

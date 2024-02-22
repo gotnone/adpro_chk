@@ -39,6 +39,9 @@ Currently implemented fixes:
 - Missing Task Fix: This will attempt to create a `<tasks>` entry for a missing
   task.  This missing task condition can often occur as side effect of the
   duplicate node and pgm fixes.
+- Missing Node Fix: This will attempt to create a `<paths>` entry for a missing
+  entry in the Task Management List.  This missing node condition can often
+  occur as a side effect of the duplicate task and pgm fixes.
 
 ## How to run
 
@@ -85,4 +88,5 @@ Attempting to fix duplicate task Zone10SM_BC
 Renamed task Zone10SM_BC duplicate to Zone10SM_BC_1
 Attempting to fix duplicate task program task\T41.rll
 Renamed node Zone10SM_BC duplicate to Zone10SM_BC_1
+Attempting to fix missing node Zone10SM_BC_1
 ```
